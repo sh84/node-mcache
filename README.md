@@ -1,4 +1,4 @@
-node-mcache
-===========
+node-cache
+=============
 
-Async memory cache
+A simple and fast memory cache for node.js
