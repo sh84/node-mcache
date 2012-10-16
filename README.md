@@ -6,6 +6,11 @@ Call only one time set function for many simultaneous get requests.
 It is designed for quick return of data from the memory - for get operations are performed minimal coding. 
 Api built in asynchronous design, with callbacks. 
 
+Install
+=============
+
+	npm install mcache
+
 Examples
 =============
 
