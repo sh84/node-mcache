@@ -98,7 +98,7 @@ MemoryCache.prototype.hash = function() {
 
 // delete all expired data
 MemoryCache.prototype.clearOld = function() {
-	var time = Math.floor(Date.now()/1000);
+	var time = Date.now();
 	for (var i in this.data) {
 		if (this.data[i].t && time - this.data[i].t > this.ttl) {
 			delete this.data[i];
