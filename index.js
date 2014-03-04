@@ -1,10 +1,14 @@
 var assert = require("assert");
  
 function MemoryCache(ttl, gc_time, set_function) {
-	assert(ttl*1 > 0, 'ttl must be > 0');
+	assert(parseInt(ttl) > 0, 'ttl must be > 0');
 	assert(set_function instanceof Function, 'set_function must be function');
-	
-	this.ttl = ttl*1000;
+
+	if (ttl.toString().indexOf('ms') == -1) {
+		this.ttl = ttl*1000;
+	} else {
+		this.ttl = parseInt(ttl);
+	}
 	this.set_function = set_function;
 	this.data = {};
 	if (gc_time) this.gc_timer = setInterval(MemoryCache.prototype.clearOld.bind(this), gc_time*1000);

@@ -3,7 +3,7 @@
   "name": "mcache",
   "description": "A simple and fast memory cache for node.js with async api",
   "keywords": ["memory", "cache", "caching", "async", "ram", "simple"],
-  "version": "0.1.2",
+  "version": "0.1.3",
   "repository": {
     "type": "git",
     "url": "git://github.com/sh84/node-mcache.git"
