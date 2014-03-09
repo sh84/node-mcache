@@ -15,6 +15,53 @@ function MemoryCache(ttl, gc_time, set_function) {
 }
 
 MemoryCache.prototype.get = function(key, callback) {
+	if (Array.isArray(key)) {
+		this.get_many(key, callback);
+	} else {
+		this.get_one(key, callback);
+	}
+}
+
+MemoryCache.prototype.get_many = function(keys, callback) {
+	var time = Date.now();
+	var to_get = [];
+	for(var i=0; i < keys.length; i++) {
+		var key = keys[i];
+		var obj = this.data[key];
+		if (!obj || obj.t && time - obj.t > this.ttl) to_get.push(key);
+	}
+	if (to_get.length == 0) {
+		var result = {};
+		for(var i=0; i < keys.length; i++) {
+			result[keys[i]] = this.data[keys[i]].v;
+		}
+		if (callback) callback(null, result);
+		return result;
+	} else 
+		var _this = this;{
+		this.set_function(to_get, function(err, data) {
+			if (err) {
+				if (callback) callback(err);
+			} else {
+				time = Date.now();
+				for(var i=0; i < to_get.length; i++) {
+					_this.data[to_get[i]] = {
+						v: data[i],
+						t: time
+					}
+				}
+				var result = {};
+				for(var i=0; i < keys.length; i++) {
+					result[keys[i]] = _this.data[keys[i]].v;
+				}
+				if (callback) callback(null, result);
+			}
+		});
+	}
+	return null;
+};
+
+MemoryCache.prototype.get_one = function(key, callback) {
 	var time = Date.now();
 	var obj = this.data[key];
 	// obj.t - time when data were setted

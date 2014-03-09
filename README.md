@@ -26,7 +26,7 @@ Examples
 	});
 	var id = ... ;
 	cache.get(id, function(err, data) {
-		console.log(err, data)
+		console.log(err, data);
 	});  
 
   
@@ -40,7 +40,27 @@ Examples
 	});
 	var id = ... ;
 	cache.get(id, function(err, data) {
-		console.log(err, data)
+		console.log(err, data);
+	});
+
+### Multi keys and milliseconds ttl
+
+	var Mcache = require('mcache');
+	// ttl = 100 ms, gc_time = 60 sec
+	cache = new Mcache('100 ms', 60, function(key, callback) {
+		if (Array.isArray(key) {
+			callback(null, [...]);
+		} else {
+			callback(null, data);
+		}
+	});
+	var id = ... ;
+	cache.get(id, function(err, data) {
+		console.log(err, data);
+	});
+	var ids = [...];
+	cache.get(ids, function(err, data) {
+		console.log(err, data); // data = {key1: data1, ...}
 	});
 
 API
