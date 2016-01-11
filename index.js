@@ -20,7 +20,7 @@ MemoryCache.prototype.get = function(key, callback) {
 	} else {
 		this.get_one(key, callback);
 	}
-}
+};
 
 MemoryCache.prototype.get_many = function(keys, callback) {
 	var time = Date.now();
@@ -37,8 +37,8 @@ MemoryCache.prototype.get_many = function(keys, callback) {
 		}
 		if (callback) callback(null, result);
 		return result;
-	} else 
-		var _this = this;{
+	} else {
+		var _this = this;
 		this.set_function(to_get, function(err, data) {
 			if (err) {
 				if (callback) callback(err);
@@ -48,7 +48,7 @@ MemoryCache.prototype.get_many = function(keys, callback) {
 					_this.data[to_get[i]] = {
 						v: data[i],
 						t: time
-					}
+					};
 				}
 				var result = {};
 				for(var i=0; i < keys.length; i++) {
