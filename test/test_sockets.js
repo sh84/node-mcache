@@ -14,24 +14,26 @@ describe('Sockets', function() {
       sockets.createClient('test1.sock', (create_client_err, send) => {
         should.not.exist(create_client_err);
         let send_count = 2;
-        send({id: 1, command: 't', keys: ['key1'], vals: ['val1']}, (send_err, msg) => {
+        send({id: 1, storage_id: 1, command: 'q', keys: ['k1'], vals: ['v1']}, (send_err, msg) => {
           should.not.exist(send_err);
           msg.should.be.eql({
             id: 1,
-            command: 't',
-            keys: ['key1'],
-            vals: ['val1']
+            storage_id: 1,
+            command: 'q',
+            keys: ['k1'],
+            vals: ['v1']
           });
           send_count -= 1;
           !send_count && done();
         });
-        send({id: 2, command: 't', keys: ['key2'], vals: ['val2']}, (send_err, msg) => {
+        send({id: 2, storage_id: 1, command: 'q', keys: ['k2'], vals: ['v2']}, (send_err, msg) => {
           should.not.exist(send_err);
           msg.should.be.eql({
             id: 2,
-            command: 't',
-            keys: ['key2'],
-            vals: ['val2']
+            storage_id: 1,
+            command: 'q',
+            keys: ['k2'],
+            vals: ['v2']
           });
           send_count -= 1;
           !send_count && done();
@@ -54,7 +56,7 @@ describe('Sockets', function() {
       sockets.createClient('test3.sock', (create_client_err, send) => {
         should.not.exist(create_client_err);
         connections.forEach(conn => conn.destroy());
-        send({command: 't', keys: ['key3'], vals: ['val3']}, send_err => {
+        send({command: 'q', keys: ['key3'], vals: ['val3']}, send_err => {
           send_err.should.be.ok();
           done();
         });
@@ -68,10 +70,11 @@ describe('Sockets', function() {
     });
     sockets.createClient('test5.sock', (create_client_err, send) => {
       should.not.exist(create_client_err);
-      send({id: 1, command: 't', keys: ['key'], vals: ['val']}, (send_err, msg) => {
+      send({id: 1, storage_id: 1, command: 'q', keys: ['key'], vals: ['val']}, (send_err, msg) => {
         msg.should.be.eql({
           id: 1,
-          command: 't',
+          storage_id: 1,
+          command: 'q',
           keys: ['key'],
           vals: ['val']
         });

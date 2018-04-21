@@ -12,12 +12,6 @@ describe('Memory', function() {
     );
   });
 
-  function newCacheP(ttl, opts) {
-    return new Promise((resolve) => {
-      resolve(newCache(ttl, opts));
-    });
-  }
-
   describe('set function timeout', function() {
     beforeEach(function() {
       this.clock = sinon.useFakeTimers(Date.now());

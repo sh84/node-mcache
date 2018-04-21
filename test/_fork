@@ -1,0 +1,6 @@
+const MCache = require('../index.js');
+new MCache(100, {type: 'memory', socket_server: {callback: (err) => {
+  process.send({err});
+}}}, (key, fn) => fn(null, key));
+
+process.on('disconnect', () => process.exit());

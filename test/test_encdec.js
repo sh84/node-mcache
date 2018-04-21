@@ -11,14 +11,16 @@ describe('EncDec', function() {
       let dec = new EncDec();
       dec.decode('').should.be.eql([]);
       dec.decode('00000003').should.be.eql([]); // id
+      dec.decode('0009').should.be.eql([]);     // server id
       dec.decode('c').should.be.eql([]);        // command
-      dec.decode('00000001').should.be.eql([]); // key count
-      dec.decode('00000001').should.be.eql([]); // val count
-      dec.decode('00000002').should.be.eql([]); // key length
+      dec.decode('0001').should.be.eql([]);     // key count
+      dec.decode('0001').should.be.eql([]);     // val count
+      dec.decode('000002').should.be.eql([]);   // key length
       dec.decode('Ёй').should.be.eql([]);       // key
-      dec.decode('00000005').should.be.eql([]); // val length
+      dec.decode('000005').should.be.eql([]);   // val length
       dec.decode('~Q \\"bla').should.be.eql([{  // val
         id: 3,
+        storage_id: 9,
         command: 'c',
         keys: ['Ёй'],
         vals: ['~Q \\"']
@@ -29,12 +31,13 @@ describe('EncDec', function() {
   describe('Encoder', function() {
     it('simple', function() {
       let enc = new EncDec();
-      enc.encode({}).should.be.eql('00000000 0000000000000000');
+      enc.encode({}).should.be.eql('000000000000 00000000');
       enc.encode({
         id: 2,
+        storage_id: 3,
         command: 'qwerty',
         keys: ['Ё']
-      }).should.be.eql('00000002q000000010000000000000001Ё');
+      }).should.be.eql('000000020003q00010000000001Ё');
     });
   });
   describe('Decoder + Encoder', function() {
@@ -42,17 +45,20 @@ describe('EncDec', function() {
       let enc = new EncDec();
       enc.decode(enc.encode({id: ''})).should.be.eql([{
         id: 0,
+        storage_id: 0,
         command: ' ',
         keys: [],
         vals: []
       }]);
       enc.decode(enc.encode({
         id: 2821109907455,
+        storage_id: 1679615,
         command: 'qwerty',
         keys: [1, 2],
         vals: ['', 0, '~!*=-(qwetyuioplkjhgfdsazxcvbnm) `"']
       })).should.be.eql([{
         id: 2821109907455,
+        storage_id: 1679615,
         command: 'q',
         keys: ['1', '2'],
         vals: ['', '0', '~!*=-(qwetyuioplkjhgfdsazxcvbnm) `"']
@@ -76,7 +82,7 @@ describe('EncDec', function() {
         return arr;
       };
       for (let id=0; id<50; id++) {
-        let msg = {id, command: genChar(), keys: genArr(), vals: genArr()};
+        let msg = {id, storage_id: 666, command: genChar(), keys: genArr(), vals: genArr()};
         messages_in.push(msg);
         data += enc.encode(msg);
       }

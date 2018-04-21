@@ -45,7 +45,8 @@ class MCache {
       this.options = this._prepareParams(ttl, params);
     }
     
-    assert(parseInt(this.options.ttl) > 0, 'ttl must be > 0');
+    if (!(this.options.socket_server && this.options.socket_server.only_server))
+      assert(parseInt(this.options.ttl) > 0, 'ttl must be > 0');
     assert(this.set_function instanceof Function, 'set_function must be function');
     assert(this.options.type == 'memory', 'type must be "memory"');
 
@@ -56,8 +57,12 @@ class MCache {
       this.storage = new SocketStorageWrapper(
         Object.assign({storage_params}, this.options.socket_server)
       );
-      this.storage.init((err) => {
-        this.options.socket_server.callback && this.options.socket_server.callback(err, this);
+      let server_lib = this.storage.init((err) => {
+        if (this.options.socket_server.callback) {
+          this.options.socket_server.callback(err, this, server_lib);
+        } else if (err) {
+          throw err;
+        }
       });
     } else {
       if (this.options.type == 'memory') {

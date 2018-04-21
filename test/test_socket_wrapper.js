@@ -2,114 +2,138 @@
 'use strict';
 
 const should = require('should');
-const sinon = require('sinon');
 require('should-sinon');
+const {itAsync, noProtObj} = require('./helper.js');
 
 const SocketStorageWrapper = require('../lib/socket_storage_wrapper.js');
 
+function getWrapperParams(params = {}) {
+  getWrapperParams.count = getWrapperParams.count ? getWrapperParams.count + 1 : 1;
+  return Object.assign({
+    socket_path: `wrapper_test${getWrapperParams.count}.sock`,
+    pid_file_path: `wrapper_test${getWrapperParams.count}.pid`
+  }, params);
+}
+
 describe('Sockets wrapper', function() {
-  it('create server for first client and not for second', function(done) {
-    let wrapper = new SocketStorageWrapper({
-      socket_path: 'wrapper_test1.sock'
+  it('not create server', function(done) {
+    let client = new SocketStorageWrapper(getWrapperParams({create_server_on_connect: false}));
+    client.init(function(err) {
+      should.not.exist(client.socket_client);
+      err.code.should.be.equal('ENOENT');
+      done();
     });
-    let run_server_fn = sinon.spy(wrapper, '_runServer');
-    wrapper.init(function(err) {
+  });
+  it('inplace server and fork server', function(done) {
+    let params = getWrapperParams({storage_hash: '1'});
+    let client1 = new SocketStorageWrapper(Object.assign({}, params, {only_server: true}));
+    let server_lib = client1.init(err => {
       should.not.exist(err);
-      run_server_fn.should.be.calledOnce();
-      wrapper.client.should.be.ok();
-      wrapper.server.should.be.ok();
-      let wrapper2 = new SocketStorageWrapper({
-        socket_path: 'wrapper_test1.sock'
-      });
-      let run_server2_fn = sinon.spy(wrapper2, '_runServer');
-      wrapper.init(function(err2) {
+      let client2 = new SocketStorageWrapper(params);
+      client2.init(function(err2) {
         should.not.exist(err2);
-        run_server2_fn.should.not.be.called();
-        wrapper.client.should.be.ok();
-        wrapper.server.should.be.ok();
+        should.not.exist(client2.socket_client.server);
+        server_lib.close(false);
         done();
       });
     });
   });
-  it('reconnect && recreate on server done', function(done) {
-    let wrapper = new SocketStorageWrapper({
-      socket_path: 'wrapper_test2.sock'
-    });
-    let run_server_fn = sinon.spy(wrapper, '_runServer');
-    wrapper.init(function(err) {
+
+  it('same storage_hash - same storage_id', function(done) {
+    let params = getWrapperParams({storage_hash: '1'});
+    let client1 = new SocketStorageWrapper(params);
+    client1.init(function(err) {
       should.not.exist(err);
-      run_server_fn.should.be.calledOnce();
-      wrapper.client.should.be.ok();
-      wrapper.server.should.be.ok();
-      wrapper._command({id: 0, command: 'c'}, function(err2) {
+      client1.storage_id.should.be.eql('0');
+      let client2 = new SocketStorageWrapper(params);
+      client2.init(function(err2) {
         should.not.exist(err2);
-        wrapper.server.kill();
-        setTimeout(() => {
-          wrapper._command({id: 1, command: 'c'}, function(err3) {
-            should.not.exist(err3);
-            run_server_fn.should.be.calledTwice();
-            done();
-          });
-        }, 50);
+        client2.storage_id.should.be.eql('0');
+        done();
       });
     });
   });
-  it('not create server', function(done) {
-    let wrapper = new SocketStorageWrapper({
-      socket_path: 'wrapper_test3.sock',
-      create_server: false
-    });
-    let run_server_fn = sinon.spy(wrapper, '_runServer');
-    wrapper.init(function(err) {
-      err.code.should.be.equal('ENOENT');
-      run_server_fn.should.not.be.called();
-      done();
-    });
-  });
-  it('separately created server', function(done) {
-    let server = new SocketStorageWrapper({
-      socket_path: 'wrapper_test4.sock',
-      ttl: 100,
-      only_server: true
-    });
-    let server_run_server_fn = sinon.spy(server, '_runServer');
-    let client = new SocketStorageWrapper({
-      socket_path: 'wrapper_test4.sock',
-      create_server: false
-    });
-    let client_run_server_fn = sinon.spy(client, '_runServer');
-    server.init(function(err) {
+
+  it('different storage_hash - different storage_id', function(done) {
+    let params = getWrapperParams({storage_hash: '1'});
+    let client1 = new SocketStorageWrapper(params);
+    client1.init(function(err) {
       should.not.exist(err);
-      server_run_server_fn.should.be.calledOnce();
-      client.init(function(err2) {
+      client1.socket_client.client.should.be.ok();
+      client1.socket_client.server.should.be.ok();
+      client1.storage_id.should.be.eql('0');
+      let client2 = new SocketStorageWrapper(Object.assign({}, params, {storage_hash: '2'}));
+      client2.init(function(err2) {
         should.not.exist(err2);
-        client_run_server_fn.should.not.be.called();
-        client._command({id: 0, command: 's', keys: ['key'], vals: ['vall']}, function() {
-          client._command({id: 1, command: 'g', keys: ['key']}, function() {
-            client._command({id: 2, command: 'd', keys: ['key']}, function() {
-              client._command({id: 3, command: 'g', keys: ['key']}, function() {
-                client._command({id: 4, command: 'c'}, function(err3) {
-                  done(err3);
-                });
-              });
-            });
-          });
-        });
+        client2.socket_client.client.should.be.ok();
+        client2.storage_id.should.be.eql('1');
+        should.not.exist(client2.server);
+        done();
       });
     });
   });
-  it('kill server', function(done) {
-    let wrapper = new SocketStorageWrapper({
-      socket_path: 'wrapper_test5.sock',
-      only_server: true
+
+  itAsync('separately created server with two storages', function*() {
+    const should_be_val = (result, key, val) => {
+      should(result).be.eql(noProtObj({[key]: {available: true, value: val}}));
+    };
+    const should_be_unavailable = (result, key) => {
+      should(result).be.eql(noProtObj({[key]: {available: false}}));
+    };
+
+    let params = getWrapperParams({only_server: true, storage_params: {type: 'memory', ttl: 100}});
+    let server = new SocketStorageWrapper(params);
+    let server_lib;
+    should.not.exist(yield new Promise(pr_done => {
+      server_lib = server.init(pr_done);
+    }));
+
+    params = Object.assign({}, params, {only_server: false, create_server: false});
+    let client1 = new SocketStorageWrapper(
+      Object.assign({}, params, {storage_hash: 'st1'})
+    );
+    const command1 = (...args) => new Promise(pr_done => {
+      client1._command(...args, (err, val) => pr_done([err, val]));
     });
-    wrapper.init(function() {
-      wrapper.server.kill('SIGKILL');
-      let wrapper2 = new SocketStorageWrapper({
-        socket_path: 'wrapper_test5.sock',
-        only_server: true
-      });
-      wrapper2.init(done);
+    should.not.exist(yield new Promise(pr_done => client1.init(pr_done)));
+    should.not.exist(client1.socket_client.server);
+
+    let client2 = new SocketStorageWrapper(
+      Object.assign({}, params, {storage_hash: 'st2'})
+    );
+    const command2 = (...args) => new Promise(pr_done => {
+      client1._command(...args, (err, val) => pr_done([err, val]));
     });
+    should.not.exist(yield new Promise(pr_done => client2.init(pr_done)));
+    should.not.exist(client2.socket_client.server);
+
+    client1.socket_client.should.be.eql(client2.socket_client);
+    should(client1.storage_id).be.eql('0');
+    should(client2.storage_id).be.eql('1');
+    client2.storage_id.should.be.eql('1');
+
+    let err, result;
+    [err] = yield command1({id: 1, storage_id: client1.storage_id, command: 's', keys: ['key'], vals: ['val1']});
+    should.not.exist(err);
+    [err] = yield command1({id: 2, storage_id: client1.storage_id, command: 's', keys: ['key1'], vals: ['val2']});
+    should.not.exist(err);
+    [err] = yield command2({id: 3, storage_id: client2.storage_id, command: 's', keys: ['key'], vals: ['val3']});
+    should.not.exist(err);
+    [err] = yield command2({id: 4, storage_id: client2.storage_id, command: 's', keys: ['key2'], vals: ['val4']});
+    should.not.exist(err);
+    [err, result] = yield command1({id: 5, storage_id: client1.storage_id, command: 'g', keys: ['key']});
+    should_be_val(result, 'key', 'val1');
+    [err, result] = yield command1({id: 6, storage_id: client1.storage_id, command: 'g', keys: ['key1']});
+    should_be_val(result, 'key1', 'val2');
+    [err, result] = yield command1({id: 7, storage_id: client1.storage_id, command: 'g', keys: ['key2']});
+    should_be_unavailable(result, 'key2');
+    [err, result] = yield command1({id: 8, storage_id: client2.storage_id, command: 'g', keys: ['key']});
+    should_be_val(result, 'key', 'val3');
+    [err, result] = yield command1({id: 9, storage_id: client2.storage_id, command: 'g', keys: ['key1']});
+    should_be_unavailable(result, 'key1');
+    [err, result] = yield command1({id: 10, storage_id: client2.storage_id, command: 'g', keys: ['key2']});
+    should_be_val(result, 'key2', 'val4');
+
+    server_lib.close(false);
   });
 });

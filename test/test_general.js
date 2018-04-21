@@ -19,7 +19,6 @@ describe('General', function() {
     });
     it('type', function() { 
       new MCache(100, {}, fn).options.type.should.be.eql('memory');
-      //new MCache(100, {type: 'cluster'}, fn).options.type.should.be.eql('cluster');
     });
     it('time', function() {
       new MCache(100, {gc_time: 66}, fn).options.gc_time.should.be.eql(66000);
