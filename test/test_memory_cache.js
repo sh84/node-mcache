@@ -2,7 +2,8 @@
 'use strict';
 
 const sinon = require('sinon');
-const {newCache, itAsync} = require('./helper.js');
+const should = require('should');
+const {newCache, itAsync, noProtObj} = require('./helper.js');
 const commonTests = require('./common_tests.js');
 
 describe('Memory', function() {
@@ -10,6 +11,37 @@ describe('Memory', function() {
     callback(
       newCache(ttl, Object.assign({type: 'memory'}, params))
     );
+  });
+
+  describe('getExist', function() {
+    itAsync('one key', function*() {
+      let cache = newCache(10);
+      let result = yield cache.getExistP('val');
+      should(result).be.eql(undefined);
+      cache.set_function.should.not.be.called();
+      yield cache.setP('val', 'val');
+      result = yield cache.getExistP('val');
+      should(result).be.eql('val');
+      cache.set_function.should.not.be.called();
+    });
+    itAsync('many keys', function*() {
+      let cache = newCache(10, {set_fn_many_keys: true});
+      let result = yield cache.getExistP(['val1', 'val2', 'val3']);
+      should(result).be.eql(noProtObj({
+        val1: undefined,
+        val2: undefined,
+        val3: undefined
+      }));
+      cache.set_function.should.not.be.called();
+      yield cache.setP('val1', 'val1');
+      result = yield cache.getExistP(['val1', 'val2', 'val3']);
+      should(result).be.eql(noProtObj({
+        val1: 'val1',
+        val2: undefined,
+        val3: undefined
+      }));
+      cache.set_function.should.not.be.called();
+    });
   });
 
   describe('set function timeout', function() {

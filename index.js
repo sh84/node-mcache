@@ -95,16 +95,16 @@ class MCache {
   }
 
   /**
-   * get value(s) by key(s)
+   * get value(s) by key(s), run set_function if not exist
    * @param  {String|String[]} key - Key or array of keys
    * @param  {Function} callback   - Callback(error, val) for key, 
    *                                 Callback(error, {key1: val1, key2: val2,..}) for array of keys
    */
   get(key, callback) {
     if (Array.isArray(key)) {
-      this.get_many(key, callback);
+      this.getMany(key, callback);
     } else {
-      this.get_one(key, callback);
+      this.getOne(key, callback);
     }
   }
 
@@ -120,11 +120,36 @@ class MCache {
   }
 
   /**
+   * get value(s) by key(s), not run set_function if not exist
+   * @param  {String|String[]} key - Key or array of keys
+   * @param  {Function} callback   - Callback(error, val) for key, 
+   *                                 Callback(error, {key1: val1, key2: val2,..}) for array of keys
+   */
+  getExist(key, callback) {
+    if (Array.isArray(key)) {
+      this.getMany(key, callback, false);
+    } else {
+      this.getOne(key, callback, false);
+    }
+  }
+
+  /**
+   * Promise version getExist function
+   * @param  {String|String[]} key - Key or array of keys
+   * @return {Promise}
+   */
+  getExistP(key) {
+    return new Promise((resolve, reject) => {
+      this.getExist(key, (error, val) => error ? reject(error) : resolve(val));
+    });
+  }
+
+  /**
    * get value by key
    * @param  {String} key
    * @param  {Function} callback - Callback(error, val) for key
    */
-  get_one(key, callback) {
+  getOne(key, callback, run_set = true) {
     let _key = key.toString();
     // push callback to queue
     let get_queue_length = this.get_queue.add(_key, (err, _, val) => 
@@ -135,8 +160,8 @@ class MCache {
     this.storage.get([_key], (get_err, data) => {
       if (get_err) return this.get_queue.run(_key, get_err);
       let el = data[_key];
-      // data is available
-      if (el.available) return this.get_queue.run(_key, get_err, el.value);
+      // data is available or not run set function
+      if (el.available || !run_set) return this.get_queue.run(_key, get_err, el.value);
       this._runSetFunction(_key, (set_fn_err, set_val) => {
         this.get_queue.run(_key, set_fn_err, set_val);
         if (!set_fn_err) this.storage.set({[_key]: set_val});
@@ -150,7 +175,7 @@ class MCache {
    * @param  {Function} callback - Callback(error, vals) for keys, where
    *                               vals is hash {key1: val1, key2: val2,..}
    */
-  get_many(keys, callback) {
+  getMany(keys, callback, run_set = true) {
     let result = Object.create(null);
     let wait_count = keys.length;
     let _keys = new Array(wait_count);
@@ -177,7 +202,7 @@ class MCache {
       for (var k=0; k < get_keys.length; k++) {
         let key = get_keys[k];
         let el = data[key];
-        if (el.available) {
+        if (el.available || !run_set) {
           this.get_queue.run(key, null, el.value);
         } else {
           keys_to_set.push(key);

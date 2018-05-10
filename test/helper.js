@@ -39,7 +39,7 @@ exports.itAsync = function(msg, fn, setup_fn) {
   });
 };
 
-exports.newCache = function(ttl, params) {
+exports.newCache = function(ttl, params = {}) {
   let set_fn;
   if (params.set_fn) {
     set_fn = params.set_fn;
