@@ -10,7 +10,7 @@
     "ram",
     "simple"
   ],
-  "version": "0.2.2",
+  "version": "0.2.3",
   "repository": {
     "type": "git",
     "url": "git://github.com/sh84/node-mcache.git"

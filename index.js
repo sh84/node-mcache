@@ -45,11 +45,12 @@ class MCache {
       this.options = this._prepareParams(ttl, params);
     }
     
-    if (!(this.options.socket_server && this.options.socket_server.only_server))
+    if (!(this.options.socket_server && this.options.socket_server.only_server)) {
       assert(parseInt(this.options.ttl) > 0, 'ttl must be > 0');
-    assert(this.set_function instanceof Function, 'set_function must be function');
-    assert(this.options.type == 'memory', 'type must be "memory"');
-
+      assert(this.set_function instanceof Function, 'set_function must be function');
+      assert(this.options.type == 'memory', 'type must be "memory"');
+    }
+    
     this.get_queue = new FunctionsQueue();
     if (this.options.socket_server) {
       let storage_params = Object.assign({}, this.options);

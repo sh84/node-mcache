@@ -54,6 +54,15 @@ module.exports = function(newCache) {
     it('del with promise', function() {
       this.cache.delP('test2').should.be.fulfilled();
     });
+    it('run get in getExist callback', function(done) {
+      this.cache.getExist('val', (_err1_, val1) => {
+        should(val1).be.eql(undefined);
+        this.cache.get('val', (_err2, val2) => {
+          val2.should.be.eql('val');
+          done();
+        });
+      });
+    });
   });
 
   describe('set function throw error', function() {
@@ -178,6 +187,20 @@ module.exports = function(newCache) {
       this.cache.set_function.should.be.calledOnce();
     }, function*() {
       this.cache = yield newCacheP(100, {set_fn_many_keys: true, set_fn_deferred_run: 10});
+    });
+
+    it('run get in getExist callback', function(done) {
+      this.cache.getExist(['val'], (_err1_, result1) => {
+        should(result1).be.eql(noProtObj({
+          val: undefined
+        }));
+        this.cache.get(['val'], (_err2, result2) => {
+          should(result2).be.eql(noProtObj({
+            val: 'val'
+          }));
+          done();
+        });
+      });
     });
   });
 };
