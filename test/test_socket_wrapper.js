@@ -154,7 +154,6 @@ describe('Sockets wrapper', function() {
     should_be_unavailable(result, 'key1');
     [err, result] = yield command1({id: 10, storage_id: client2.storage_id, command: 'g', keys: ['key2']});
     should_be_val(result, 'key2', 'val4');
-
     server_lib.close(false);
   });
 
@@ -190,5 +189,38 @@ describe('Sockets wrapper', function() {
     should.not.exist(err);
     [err, result] = yield command({id: 4, storage_id: client.storage_id, command: 'g', keys: ['key']});
     should_be_val(result, 'key', 'val2');
+    server_lib.close(false);
+  });
+
+  itAsync('reconnect to new server', function*() {
+    const fs = require('fs');
+    let params = getWrapperParams({only_server: true, storage_params: {type: 'memory', ttl: 100}});
+    let server = new SocketStorageWrapper(params);
+    let server_lib;
+    should.not.exist(yield new Promise(pr_done => {
+      server_lib = server.init(pr_done);
+    }));
+
+    let client = new SocketStorageWrapper(
+      Object.assign({}, params, {only_server: false, create_server: false, create_server_on_connect: false, storage_hash: 'st'})
+    );
+    const command = (...args) => new Promise(pr_done => {
+      client._command(...args, (err, val) => pr_done([err, val]));
+    });
+    should.not.exist(yield new Promise(pr_done => client.init(pr_done)));
+    should.not.exist(client.socket_client.server);
+
+    let err, result;
+    server_lib.close(false);
+    
+    [err, result] = yield command({id: 2, storage_id: client.storage_id, command: 'g', keys: ['key']});
+    err.should.be.ok();
+    server = new SocketStorageWrapper(params);
+    should.not.exist(yield new Promise(pr_done => {
+      server_lib = server.init(pr_done);
+    }));
+    [err, result] = yield command({id: 2, storage_id: client.storage_id, command: 'g', keys: ['key']});
+    should.not.exist(err);
+    server_lib.close(false);
   });
 });
