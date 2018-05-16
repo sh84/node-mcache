@@ -15,6 +15,14 @@ function getWrapperParams(params = {}) {
   }, params);
 }
 
+function should_be_val(result, key, val) {
+  should(result).be.eql(noProtObj({[key]: {available: true, value: val}}));
+}
+
+function should_be_unavailable(result, key) {
+  should(result).be.eql(noProtObj({[key]: {available: false}}));
+}
+
 describe('Sockets wrapper', function() {
   it('not create server', function(done) {
     let client = new SocketStorageWrapper(getWrapperParams({create_server_on_connect: false}));
@@ -73,14 +81,28 @@ describe('Sockets wrapper', function() {
     });
   });
 
-  itAsync('separately created server with two storages', function*() {
-    const should_be_val = (result, key, val) => {
-      should(result).be.eql(noProtObj({[key]: {available: true, value: val}}));
-    };
-    const should_be_unavailable = (result, key) => {
-      should(result).be.eql(noProtObj({[key]: {available: false}}));
-    };
+  itAsync('same storage_hash - same storage', function*() {
+    let params = getWrapperParams({
+      storage_hash: 'storage_hash',
+      storage_params: {type: 'memory', ttl: 100}
+    });
+    let client = new SocketStorageWrapper(params);
+    const command = (...args) => new Promise(pr_done => {
+      client._command(...args, (err, val) => pr_done([err, val]));
+    });
+    should.not.exist(yield new Promise(pr_done => client.init(pr_done)));
+    
+    let err, result;
+    [err] = yield command({id: 1, storage_id: client.storage_id, command: 's', keys: ['key'], vals: ['val']});
+    should.not.exist(err);
+    [err, result] = yield command({id: 2, storage_id: client.storage_id, command: 'g', keys: ['key']});
+    should_be_val(result, 'key', 'val');
+    should.not.exist(yield new Promise(pr_done => client.setStorageID(pr_done)));
+    [err, result] = yield command({id: 4, storage_id: client.storage_id, command: 'g', keys: ['key']});
+    should_be_val(result, 'key', 'val');
+  });
 
+  itAsync('separately created server with two storages', function*() {
     let params = getWrapperParams({only_server: true, storage_params: {type: 'memory', ttl: 100}});
     let server = new SocketStorageWrapper(params);
     let server_lib;
@@ -110,7 +132,6 @@ describe('Sockets wrapper', function() {
     client1.socket_client.should.be.eql(client2.socket_client);
     should(client1.storage_id).be.eql('0');
     should(client2.storage_id).be.eql('1');
-    client2.storage_id.should.be.eql('1');
 
     let err, result;
     [err] = yield command1({id: 1, storage_id: client1.storage_id, command: 's', keys: ['key'], vals: ['val1']});
@@ -135,5 +156,39 @@ describe('Sockets wrapper', function() {
     should_be_val(result, 'key2', 'val4');
 
     server_lib.close(false);
+  });
+
+  itAsync('restart separately created server and connected client', function*() {
+    let params = getWrapperParams({only_server: true, storage_params: {type: 'memory', ttl: 100}});
+    let server = new SocketStorageWrapper(params);
+    let server_lib;
+    should.not.exist(yield new Promise(pr_done => {
+      server_lib = server.init(pr_done);
+    }));
+
+    let client = new SocketStorageWrapper(
+      Object.assign({}, params, {only_server: false, create_server: false, storage_hash: 'st'})
+    );
+    const command = (...args) => new Promise(pr_done => {
+      client._command(...args, (err, val) => pr_done([err, val]));
+    });
+    should.not.exist(yield new Promise(pr_done => client.init(pr_done)));
+    should.not.exist(client.socket_client.server);
+
+    let err, result;
+    [err] = yield command({id: 1, storage_id: client.storage_id, command: 's', keys: ['key'], vals: ['val1']});
+    should.not.exist(err);
+    server_lib.close(false);
+    server = new SocketStorageWrapper(params);
+    should.not.exist(yield new Promise(pr_done => {
+      server_lib = server.init(pr_done);
+    }));
+    [err, result] = yield command({id: 2, storage_id: client.storage_id, command: 'g', keys: ['key']});
+    should.not.exist(err);
+    should_be_unavailable(result, 'key');
+    [err] = yield command({id: 3, storage_id: client.storage_id, command: 's', keys: ['key'], vals: ['val2']});
+    should.not.exist(err);
+    [err, result] = yield command({id: 4, storage_id: client.storage_id, command: 'g', keys: ['key']});
+    should_be_val(result, 'key', 'val2');
   });
 });
